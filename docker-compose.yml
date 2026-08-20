@@ -1,0 +1,17 @@
+services:
+  tahoma-ui:
+    build: .
+    container_name: tahoma-ui
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    #environment:
+    #  TAHOMA_BASE_URL: https://gateway-2001-0001-1891.local:8443/enduser-mobile-web/1/enduserAPI
+    #  TAHOMA_BEARER_TOKEN: replace_with_your_tahoma_bearer_token
+    volumes:
+      - tahoma-data:/app/data
+
+volumes:
+  tahoma-data:

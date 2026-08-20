@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tahoma UI</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f2efe8;
+        --panel: #fffdf8;
+        --panel-alt: #e7efe9;
+        --text: #19332d;
+        --muted: #71817b;
+        --accent: #1d7565;
+        --accent-2: #d7a84c;
+        --danger: #bd5b4b;
+        --line: #d9e0d9;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Georgia, 'Times New Roman', serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 32px 16px 64px;
+      }
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(32px, 5vw, 54px);
+        letter-spacing: 0;
+      }
+      .subtitle {
+        color: var(--muted);
+        margin-bottom: 24px;
+      }
+      .status {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+      }
+      .overview { margin: 28px 0 34px; }
+      .overview-heading {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 14px;
+      }
+      .overview-heading h2 { margin: 0; font-size: 22px; }
+      .overview-heading span {
+        color: var(--muted);
+        font: 12px/1.4 Arial, sans-serif;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .overview-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 10px;
+      }
+      .overview-card {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 14px;
+      }
+      .overview-card-top, .overview-card-bottom {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .overview-card-top { margin-bottom: 14px; }
+      .overview-card h3 {
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 17px;
+      }
+      .state-badge {
+        border-radius: 999px;
+        padding: 4px 8px;
+        background: var(--panel-alt);
+        color: var(--accent);
+        font: bold 11px Arial, sans-serif;
+        white-space: nowrap;
+      }
+      .state-badge.moving { background: #f6e8bd; color: #805d16; }
+      .blind-visual {
+        position: relative;
+        height: 54px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        background: #e5eee9;
+        padding: 8px 12px;
+      }
+      .blind-visual::before {
+        content: '';
+        position: absolute;
+        inset: 8px 12px;
+        background: repeating-linear-gradient(to bottom, #5c8f82 0 3px, transparent 3px 9px);
+        opacity: var(--shade, 0.5);
+      }
+      .blind-visual::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 12px;
+        width: 3px;
+        background: var(--accent-2);
+        transform: translateX(var(--position, 0%));
+      }
+      .overview-card-bottom {
+        margin-top: 12px;
+        color: var(--muted);
+        font: 12px Arial, sans-serif;
+      }
+      .signal {
+        display: inline-flex;
+        align-items: end;
+        gap: 2px;
+        height: 15px;
+        margin-right: 5px;
+        vertical-align: middle;
+      }
+      .signal i { width: 3px; background: var(--line); }
+      .signal i:nth-child(1) { height: 4px; }
+      .signal i:nth-child(2) { height: 7px; }
+      .signal i:nth-child(3) { height: 10px; }
+      .signal i:nth-child(4) { height: 13px; }
+      .signal i.active { background: var(--accent); }
+      .history {
+        margin: 0 0 34px;
+        padding: 18px;
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+      }
+      .history-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+      .history-heading h2 { margin: 0; font-size: 22px; }
+      .range-controls {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 14px;
+      }
+      .range-button {
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 7px 10px;
+        background: transparent;
+        color: var(--muted);
+        font: 12px Arial, sans-serif;
+      }
+      .range-button.active, .range-button:hover {
+        background: var(--panel-alt);
+        color: var(--accent);
+      }
+      .chart-wrap {
+        position: relative;
+        min-height: 250px;
+        overflow: hidden;
+        border-top: 1px solid var(--line);
+        border-bottom: 1px solid var(--line);
+      }
+      .chart-panel + .chart-panel { margin-top: 24px; }
+      .chart-panel h3 { margin: 0 0 8px; font-size: 15px; }
+      .metric-chart { display: block; width: 100%; height: 250px; }
+      .chart-gridline { stroke: var(--line); stroke-width: 1; }
+      .chart-axis-label, .chart-empty {
+        fill: var(--muted);
+        font: 11px Arial, sans-serif;
+      }
+      .chart-line { fill: none; stroke-width: 2.5; vector-effect: non-scaling-stroke; }
+      .chart-rssi { stroke: var(--accent-2); }
+      .chart-closure { stroke: var(--accent); }
+      .chart-target { stroke: var(--danger); stroke-dasharray: 5 4; }
+      .chart-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-top: 12px;
+        color: var(--muted);
+        font: 12px Arial, sans-serif;
+      }
+      .legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .legend-swatch {
+        display: inline-block;
+        width: 16px;
+        height: 3px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+      }
+      .device {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 16px;
+      }
+      .device h3 {
+        margin-top: 0;
+      }
+      .meta {
+        color: var(--muted);
+        font-size: 12px;
+        word-break: break-all;
+      }
+      .state-list {
+        margin: 14px 0;
+        padding: 0;
+        list-style: none;
+      }
+      .state-list li {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--line);
+      }
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 14px;
+      }
+      button {
+        border: 0;
+        border-radius: 8px;
+        padding: 8px 12px;
+        cursor: pointer;
+        color: white;
+        font-weight: bold;
+      }
+      .open { background: var(--accent-2); }
+      .close { background: var(--danger); }
+      .stop { background: var(--accent); }
+      .loading, .empty {
+        color: var(--muted);
+      }
+      @media (max-width: 560px) {
+        .container { padding-top: 22px; }
+        .overview-heading { display: block; }
+        .overview-heading span { display: block; margin-top: 5px; }
+        .history-heading { display: block; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Tahoma UI</h1>
+      <div class="subtitle">Local control for roller blinds and cover devices</div>
+      <div class="status" id="status">Loading devices…</div>
+      <section class="overview" aria-labelledby="overviewTitle">
+        <div class="overview-heading">
+          <h2 id="overviewTitle">Home overview</h2>
+          <span id="overviewMeta">Waiting for device data</span>
+        </div>
+        <div id="overviewGrid" class="overview-grid"></div>
+      </section>
+      <section class="history" aria-labelledby="historyTitle">
+        <div class="history-heading">
+          <h2 id="historyTitle">Telemetry history</h2>
+        </div>
+        <div class="range-controls" role="group" aria-label="History range">
+          <button class="range-button" data-range="hour">Last hour</button>
+          <button class="range-button active" data-range="today">Today</button>
+          <button class="range-button" data-range="week">Last week</button>
+          <button class="range-button" data-range="month">Last month</button>
+        </div>
+        <div id="historyCharts"></div>
+      </section>
+      <div id="deviceGrid" class="grid"></div>
+    </div>
+
+    <script src="/app.js"></script>
+  </body>
+</html>
