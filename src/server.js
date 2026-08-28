@@ -9,8 +9,41 @@ const {
 } = require('./historyStore');
 
 const app = express();
-const port = Number(process.env.PORT || 3000);
 const historyIntervalMs = 60 * 1000;
+
+function getPort() {
+  const argumentsList = process.argv.slice(2);
+  const portArgumentIndex = argumentsList.findIndex((argument) => argument === '--port');
+  const inlinePortArgument = argumentsList.find((argument) => argument.startsWith('--port='));
+
+  if (argumentsList.includes('--help') || argumentsList.includes('-h')) {
+    console.log('Usage: node src/server.js [--port <number>]');
+    console.log('       npm start -- --port <number>');
+    console.log(`Default port: ${process.env.PORT || 3000}`);
+    process.exit(0);
+  }
+
+  const portValue = inlinePortArgument
+    ? inlinePortArgument.slice('--port='.length)
+    : portArgumentIndex >= 0
+      ? argumentsList[portArgumentIndex + 1]
+      : process.env.PORT || 3000;
+  const port = Number(portValue);
+
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error(`Invalid port: ${portValue}. Port must be an integer between 1 and 65535.`);
+  }
+
+  return port;
+}
+
+let port;
+try {
+  port = getPort();
+} catch (error) {
+  console.error(error.message);
+  process.exit(1);
+}
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '..', 'public')));

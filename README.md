@@ -71,6 +71,12 @@ npm start
 The app listens on `http://localhost:3000` and starts collecting telemetry
 into `data/tahoma.sqlite` immediately, then every 60 seconds.
 
+To use a different port, pass it after the npm command (or set `PORT`):
+
+```bash
+npm start -- --port 4000
+```
+
 ## Running with Docker
 
 ### Build and run directly
