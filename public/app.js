@@ -5,6 +5,7 @@ const overviewMeta = document.getElementById('overviewMeta');
 const historyCharts = document.getElementById('historyCharts');
 let selectedHistoryRange = 'today';
 let historyEventsReady = false;
+let historyChartInstances = [];
 
 function escapeHtml(value) {
   return String(value)
@@ -67,49 +68,94 @@ function renderOverview(devices) {
   }).join('');
 }
 
-function linePath(points, key, x, y) {
-  return points
-    .filter((point) => point[key] !== null && point[key] !== undefined)
-    .map((point, index, values) => `${index ? 'L' : 'M'} ${x(point.sampled_at, values)} ${y(point[key])}`)
-    .join(' ');
+function chartPoints(points, metric) {
+  const sortedPoints = points
+    .filter((point) => point[metric] !== null && point[metric] !== undefined)
+    .sort((first, second) => first.sampled_at - second.sampled_at);
+  const result = [];
+
+  sortedPoints.forEach((point, index) => {
+    if (index > 0 && point.sampled_at - sortedPoints[index - 1].sampled_at > 90) {
+      result.push({ x: (sortedPoints[index - 1].sampled_at + 60) * 1000, y: null });
+    }
+    result.push({ x: point.sampled_at * 1000, y: Number(point[metric]) });
+  });
+
+  return result;
 }
 
 function renderMetricChart(points, metric, title, range) {
-  const width = 800;
-  const height = 250;
-  const padding = { top: 18, right: 18, bottom: 32, left: 42 };
-  const plotWidth = width - padding.left - padding.right;
-  const plotHeight = height - padding.top - padding.bottom;
-  const durations = { hour: 3600, today: 86400, week: 604800, month: 2592000 };
-  const end = Math.floor(Date.now() / 1000);
-  const start = end - (durations[range] || durations.today);
-  const timeSpan = durations[range] || durations.today;
-  const x = (timestamp) => padding.left + ((timestamp - start) / timeSpan) * plotWidth;
-  const y = (value) => padding.top + (1 - Math.max(0, Math.min(100, Number(value))) / 100) * plotHeight;
-  const grid = [0, 25, 50, 75, 100].map((value) => `
-    <line class="chart-gridline" x1="${padding.left}" x2="${width - padding.right}" y1="${y(value)}" y2="${y(value)}"></line>
-    <text class="chart-axis-label" x="8" y="${y(value) + 4}">${value}</text>`).join('');
   const devices = [...new Map(points.map((point) => [point.device_url, point.label])).entries()];
-  const paths = devices.map(([deviceUrl, label], index) => {
-    const devicePoints = points.filter((point) => point.device_url === deviceUrl);
-    const deviceColor = `hsl(${(index * 137.5) % 360} 42% 38%)`;
-    return `<path class="chart-line" stroke="${deviceColor}" d="${linePath(devicePoints, metric, (timestamp) => x(timestamp), y)}"><title>${escapeHtml(label)}</title></path>`;
-  }).join('');
-  const labels = points.length ? `
-    <text class="chart-axis-label" x="${padding.left}" y="${height - 8}">${new Date(start * 1000).toLocaleDateString()}</text>
-    <text class="chart-axis-label" text-anchor="end" x="${width - padding.right}" y="${height - 8}">${new Date(end * 1000).toLocaleDateString()}</text>` : '';
-  const legend = devices.map(([deviceUrl, label], index) => `<span class="legend-item"><span class="legend-swatch" style="background:hsl(${(index * 137.5) % 360} 42% 38%)"></span>${escapeHtml(label)}</span>`).join('');
-  return `<section class="chart-panel"><h3>${title}</h3><div class="chart-wrap"><svg class="metric-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${title} history">${grid}${paths}${labels}${points.length ? '' : '<text class="chart-empty" text-anchor="middle" x="400" y="125">No samples for this period yet</text>'}</svg></div><div class="chart-legend">${legend}</div></section>`;
+  const datasets = devices.map(([deviceUrl, label], index) => ({
+    label,
+    data: chartPoints(points.filter((point) => point.device_url === deviceUrl), metric),
+    borderColor: `hsl(${(index * 137.5) % 360} 42% 38%)`,
+    backgroundColor: `hsl(${(index * 137.5) % 360} 42% 38%)`,
+    borderWidth: 2,
+    pointRadius: 2,
+    pointHoverRadius: 6,
+    spanGaps: false,
+    tension: 0.15,
+  }));
+  const chartData = escapeHtml(JSON.stringify(datasets));
+  return `<section class="chart-panel"><h3>${title}</h3><div class="chart-wrap"><canvas class="metric-chart" data-chart="${chartData}" role="img" aria-label="${title} history"></canvas>${points.length ? '' : '<p class="chart-empty">No samples for this period yet</p>'}</div></section>`;
 }
 
 async function loadHistory() {
   const data = await apiFetch(`/api/history?range=${selectedHistoryRange}`);
   const points = data.points || [];
+  historyChartInstances.forEach((chart) => chart.destroy());
+  historyChartInstances = [];
   historyCharts.innerHTML = [
     ['rssi_level', 'RSSI level'],
     ['closure_state', 'Closure state'],
     ['target_closure_state', 'Target closure state'],
   ].map(([metric, title]) => renderMetricChart(points, metric, title, selectedHistoryRange)).join('');
+
+  const durations = { hour: 3600, today: 86400, week: 604800, month: 2592000 };
+  const end = Math.floor(Date.now() / 1000) * 1000;
+  const start = end - (durations[selectedHistoryRange] || durations.today) * 1000;
+  document.querySelectorAll('.metric-chart').forEach((canvas) => {
+    historyChartInstances.push(new Chart(canvas, {
+      type: 'line',
+      data: { datasets: JSON.parse(canvas.dataset.chart || '[]') },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: false,
+        normalized: true,
+        scales: {
+          x: {
+            type: 'linear',
+            min: start,
+            max: end,
+            grid: { color: '#d9e0d9' },
+            ticks: {
+              color: '#71817b',
+              callback: (value) => new Date(value).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric' }),
+            },
+          },
+          y: {
+            min: 0,
+            max: 100,
+            grid: { color: '#d9e0d9' },
+            ticks: { color: '#71817b' },
+          },
+        },
+        plugins: {
+          legend: { display: true, labels: { color: '#71817b' } },
+          tooltip: {
+            mode: 'nearest',
+            intersect: false,
+            callbacks: {
+              title: (items) => new Date(items[0].parsed.x).toLocaleString(),
+              label: (item) => `${item.dataset.label}: ${item.parsed.y ?? 'No measurement'}`,
+            },
+          },
+        },
+      },
+    }));
+  });
 }
 
 function setupHistory() {

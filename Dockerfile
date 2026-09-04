@@ -14,6 +14,8 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY src ./src
 COPY public ./public
+RUN mkdir -p public/vendor \
+  && cp node_modules/chart.js/dist/chart.umd.js public/vendor/chart.umd.js
 
 RUN mkdir -p /app/data && chown -R node:node /app
 USER node
