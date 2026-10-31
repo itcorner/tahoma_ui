@@ -87,7 +87,7 @@ docker run -d \
   --name tahoma-ui \
   --env-file .env \
   -p 3000:3000 \
-  -v tahoma-data:/app/data \
+  --mount type=bind,source="$(pwd)/data",target=/app/data \
   tahoma-ui:local
 ```
 
@@ -97,14 +97,14 @@ docker run -d \
 docker compose up -d --build
 ```
 
-`docker-compose.yml` loads variables from `.env` (via `env_file`) and also
-defines `TAHOMA_BASE_URL` / `TAHOMA_BEARER_TOKEN` directly under
-`environment:` — the `environment:` values take precedence, so you can either
-edit `.env`, edit the compose file, or override at the command line
-(`TAHOMA_BEARER_TOKEN=... docker compose up`).
+`docker-compose.yml` loads variables from `.env` via `env_file`.
 
-Telemetry data persists in the named volume `tahoma-data`, mounted at
-`/app/data` inside the container.
+Both examples bind-mount the local `data/` directory at `/app/data` inside
+the container, preserving the existing `data/tahoma.sqlite` database across
+redeployments. Ensure `data/` exists before starting (`mkdir -p data` for a
+new installation) and is writable by the container's `node` user. Compose
+requires the source directory to exist rather than silently creating an
+empty directory.
 
 ## API reference
 

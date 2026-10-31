@@ -1,7 +1,7 @@
 {
   "name": "tahoma_ui",
-  "version": "1.0.0",
-  "description": "",
+  "version": "0.1.0",
+  "description": "Tahoma lightweight UI application visualizing state of the blinds",
   "main": "src/server.js",
   "directories": {
     "doc": "docs"
