@@ -44,8 +44,11 @@ cp .env.example .env
 | Variable               | Description                                                                 | Default |
 |-------------------------|-------------------------------------------------------------------------------|---------|
 | `PORT`                  | Port the app listens on                                                       | `3000`  |
+| `PUID`                  | Container application UID (Docker only)                                        | `1000` |
+| `PGID`                  | Container application GID (Docker only)                                        | `1000` |
 | `TAHOMA_BASE_URL`       | Base URL of the gateway's local API, e.g. `https://gateway-<pin>.local:8443/enduser-mobile-web/1/enduserAPI` | — |
 | `TAHOMA_BEARER_TOKEN`   | Developer Mode token generated for the gateway                                | —       |
+| `TAHOMA_UI_HOSTNAME`    | UI hostname for Traefik's Host routing rule (required with `docker-compose-traefik.yml`), e.g. `tahoma.example.com`; no scheme or port | — |
 
 ### Finding your gateway
 
@@ -83,13 +86,18 @@ npm start -- --port 4000
 
 ```bash
 docker build -t tahoma-ui:local .
+PORT=3000
 docker run -d \
   --name tahoma-ui \
   --env-file .env \
-  -p 3000:3000 \
+  -e PORT="$PORT" \
+  -p "$PORT:$PORT" \
   --mount type=bind,source="$(pwd)/data",target=/app/data \
   tahoma-ui:local
 ```
+
+For this direct Docker example, change the shell variable `PORT` to the desired
+port. It overrides `.env`'s `PORT` so the application and published port agree.
 
 ### Docker Compose
 
@@ -98,13 +106,57 @@ docker compose up -d --build
 ```
 
 `docker-compose.yml` loads variables from `.env` via `env_file`.
+Both Compose files use `PORT` from `.env` (default `3000`) for the application
+and routing: the regular Compose file publishes the same host/container port,
+and the Traefik file routes to that container port. A shell override such as
+`PORT=4000 docker compose up -d --build` takes precedence for both.
+The Docker health check also follows the application's `PORT`. `EXPOSE 3000`
+in the image documents the default only; it does not restrict custom ports.
 
 Both examples bind-mount the local `data/` directory at `/app/data` inside
 the container, preserving the existing `data/tahoma.sqlite` database across
-redeployments. Ensure `data/` exists before starting (`mkdir -p data` for a
-new installation) and is writable by the container's `node` user. Compose
-requires the source directory to exist rather than silently creating an
-empty directory.
+redeployments. The `data/` directory must already exist (`mkdir -p data` for
+a new installation). If `data/tahoma.sqlite` is missing, startup creates a new
+database as the application user, and the application initializes its telemetry
+schema. To retain previous history, restore your database before starting.
+Compose requires the source directory to exist rather than silently creating
+an empty directory.
+
+At startup, the container checks database, directory, and SQLite sidecar
+permissions as the application user. If necessary, it attempts to repair
+ownership and owner permissions, then verifies that SQLite can open a write
+transaction. This brief startup step runs as root and may change ownership of
+the bind-mounted directory and database files to the application UID/GID. The
+application itself runs without root, using `node`'s IDs (`1000:1000`) by default.
+
+Set `PUID` and/or `PGID` in `.env` to use your host user's IDs, for example:
+
+```dotenv
+PUID=1001
+PGID=1001
+```
+
+Find your host IDs with `id -u` and `id -g`. Both Compose files and the direct
+Docker example load these overrides through `--env-file`/`env_file`. Each ID
+must be a decimal integer from 1 to 2147483647 without leading zeros; root IDs
+are not supported. Custom IDs need not exist as named users/groups in the image.
+Overrides apply to database creation, permission checks/repairs, and the
+application process.
+
+When using Docker's `--user` override, checks and repairs run as that user
+instead and cannot repair ownership. Omitted `PUID`/`PGID` then default to the
+current user's IDs; explicit overrides must match them or startup fails.
+
+A failed database creation or an unsuccessful repair/check exits the container
+with a nonzero status and an error in the logs. Compose's `restart: unless-stopped`
+policy may retry startup until the underlying problem is fixed.
+
+To validate the container startup checks in isolation (requires Docker):
+
+```bash
+docker build -t tahoma-ui:db-startup-check .
+node --test test/docker-entrypoint.test.js
+```
 
 ## API reference
 

@@ -1,0 +1,39 @@
+services:
+  tahoma-ui:
+    build: .
+    container_name: tahoma-ui
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      PORT: "${PORT:-3000}"
+    #  TAHOMA_BASE_URL: https://gateway-2001-0001-1891.local:8443/enduser-mobile-web/1/enduserAPI
+    #  TAHOMA_BEARER_TOKEN: replace_with_your_tahoma_bearer_token
+    #  TAHOMA_UI_HOSTNAME: replace_with_your_tahoma_ui_hostname
+    labels:
+      - traefik.enable=true
+      - traefik.docker.network=traefik_internal
+      - traefik.http.routers.tahoma-ui.rule=Host(`${TAHOMA_UI_HOSTNAME}`)
+      - traefik.http.routers.tahoma-ui.tls=true
+      - traefik.http.routers.tahoma-ui.tls.certresolver=letsencrypt
+      - traefik.http.routers.tahoma-ui.entrypoints=websecure
+      - traefik.http.routers.tahoma-ui.service=tahoma-ui-srv
+      - traefik.http.services.tahoma-ui-srv.loadbalancer.server.port=${PORT:-3000}
+      #- traefik.http.services.tahoma-ui-srv.loadbalancer.passhostheader=true
+      - traefik.http.routers.tahoma-ui.service=tahoma-ui-srv
+      # Uncomment the line below to enable the IP allowlist middleware
+      #- traefik.http.routers.tahoma-ui.middlewares=central-ipallowlist-intern@file
+      # Uncomment line below to enable automatic updates with Watchtower
+      #- com.centurylinklabs.watchtower.enable=true
+    volumes:
+      - type: bind
+        source: ./data
+        target: /app/data
+        bind:
+          create_host_path: false
+    networks:
+      - traefik_internal
+
+networks:
+  traefik_internal:
+    external: true
